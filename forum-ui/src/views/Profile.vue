@@ -3,16 +3,85 @@
     <div v-if="isAuthenticated" class="profile-content">
       <div class="profile-header">
         <div class="avatar">
-          <i class="mdi mdi-account-circle"></i>
+          <img v-if="currentUser.avatar" :src="currentUser.avatar" :alt="currentUser.name" class="avatar-img">
+          <i v-else class="mdi mdi-account-circle"></i>
         </div>
-        <h1>{{ currentUser.name }}'s Profile</h1>
+        <div class="profile-title">
+          <h1>{{ currentUser.name }}'s Profile</h1>
+          <button @click="toggleEditMode" class="edit-btn">
+            <i class="mdi" :class="isEditing ? 'mdi-close' : 'mdi-pencil'"></i>
+            {{ isEditing ? 'Cancel' : 'Edit Profile' }}
+          </button>
+        </div>
       </div>
 
       <div class="profile-sections">
         <!-- User Info Section -->
         <section class="profile-section">
           <h2>User Information</h2>
-          <div class="info-grid">
+          <div v-if="isEditing" class="edit-form">
+            <form @submit.prevent="saveProfile">
+              <div class="form-group">
+                <label for="username">Username</label>
+                <input 
+                  type="text" 
+                  id="username" 
+                  v-model="editForm.username" 
+                  required
+                  class="form-input"
+                >
+              </div>
+              <div class="form-group">
+                <label for="bio">Bio</label>
+                <textarea 
+                  id="bio" 
+                  v-model="editForm.bio" 
+                  class="form-input"
+                  rows="3"
+                  placeholder="Tell us about yourself..."
+                ></textarea>
+              </div>
+              <div class="form-group">
+                <label for="location">Location</label>
+                <input 
+                  type="text" 
+                  id="location" 
+                  v-model="editForm.location" 
+                  class="form-input"
+                  placeholder="City, Country"
+                >
+              </div>
+              <div class="form-group">
+                <label for="website">Website</label>
+                <input 
+                  type="url" 
+                  id="website" 
+                  v-model="editForm.website" 
+                  class="form-input"
+                  placeholder="https://example.com"
+                >
+              </div>
+              <div class="form-group">
+                <label for="avatar">Avatar URL</label>
+                <input 
+                  type="url" 
+                  id="avatar" 
+                  v-model="editForm.avatar" 
+                  class="form-input"
+                  placeholder="https://example.com/avatar.jpg"
+                >
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="save-btn">
+                  <i class="mdi mdi-content-save"></i> Save Changes
+                </button>
+                <button type="button" @click="toggleEditMode" class="cancel-btn">
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+          <div v-else class="info-grid">
             <div class="info-item">
               <label>Username</label>
               <p>{{ currentUser.name }}</p>
@@ -20,6 +89,23 @@
             <div class="info-item">
               <label>Member Since</label>
               <p>{{ formatDate(currentUser.joinDate) }}</p>
+            </div>
+            <div class="info-item">
+              <label>Location</label>
+              <p>{{ currentUser.location || 'Not specified' }}</p>
+            </div>
+            <div class="info-item">
+              <label>Website</label>
+              <p>
+                <a v-if="currentUser.website" :href="currentUser.website" target="_blank" rel="noopener noreferrer">
+                  {{ currentUser.website }}
+                </a>
+                <span v-else>Not specified</span>
+              </p>
+            </div>
+            <div class="info-item full-width">
+              <label>Bio</label>
+              <p>{{ currentUser.bio || 'No bio provided' }}</p>
             </div>
             <div class="info-item">
               <label>Posts</label>
@@ -64,7 +150,7 @@
       <i class="mdi mdi-account-lock"></i>
       <h2>Login Required</h2>
       <p>Please log in to view your profile.</p>
-      <button class="login-btn">
+      <button @click="$emit('show-login')" class="login-btn">
         <i class="mdi mdi-login"></i> Login
       </button>
     </div>
@@ -72,13 +158,21 @@
 </template>
 
 <script>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useStore } from 'vuex'
 
 export default {
   name: 'UserProfileView',
   setup() {
     const store = useStore()
+    const isEditing = ref(false)
+    const editForm = ref({
+      username: '',
+      bio: '',
+      location: '',
+      website: '',
+      avatar: ''
+    })
 
     const currentUser = computed(() => store.getters.currentUser)
     const isAuthenticated = computed(() => store.getters.isAuthenticated)
@@ -96,6 +190,32 @@ export default {
         return total + userReplies.length
       }, 0)
     })
+
+    const toggleEditMode = () => {
+      if (!isEditing.value) {
+        // Initialize form with current values
+        editForm.value = {
+          username: currentUser.value.name,
+          bio: currentUser.value.bio || '',
+          location: currentUser.value.location || '',
+          website: currentUser.value.website || '',
+          avatar: currentUser.value.avatar || ''
+        }
+      }
+      isEditing.value = !isEditing.value
+    }
+
+    const saveProfile = async () => {
+      try {
+        await store.dispatch('updateProfile', {
+          userId: currentUser.value.id,
+          updates: editForm.value
+        })
+        isEditing.value = false
+      } catch (error) {
+        alert(error.message)
+      }
+    }
 
     const formatDate = (timestamp) => {
       if (!timestamp) return ''
@@ -115,6 +235,10 @@ export default {
       isAuthenticated,
       userPosts,
       totalReplies,
+      isEditing,
+      editForm,
+      toggleEditMode,
+      saveProfile,
       formatDate,
       truncateContent
     }
@@ -297,5 +421,116 @@ export default {
 
 .login-btn:hover {
   background-color: #4f46e5;
+}
+
+.profile-title {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.edit-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background-color: #f3f4f6;
+  border: none;
+  border-radius: 6px;
+  color: #374151;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.edit-btn:hover {
+  background-color: #e5e7eb;
+}
+
+.avatar-img {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.edit-form {
+  background: #f9fafb;
+  padding: 20px;
+  border-radius: 8px;
+  margin-top: 16px;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: #374151;
+  font-weight: 500;
+}
+
+.form-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 1em;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+}
+
+.form-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.save-btn, .cancel-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1em;
+}
+
+.save-btn {
+  background-color: #6366f1;
+  color: white;
+}
+
+.save-btn:hover {
+  background-color: #4f46e5;
+}
+
+.cancel-btn {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.cancel-btn:hover {
+  background-color: #e5e7eb;
+}
+
+.full-width {
+  grid-column: 1 / -1;
+}
+
+.info-item a {
+  color: #6366f1;
+  text-decoration: none;
+}
+
+.info-item a:hover {
+  text-decoration: underline;
 }
 </style> 

@@ -54,6 +54,28 @@ export default createStore({
         post.replies.push(reply)
         localStorage.setItem('forum_posts', JSON.stringify(state.posts))
       }
+    },
+    UPDATE_USER_PROFILE(state, { userId, updates }) {
+      // Update in users array
+      const userIndex = state.users.findIndex(u => u.id === userId)
+      if (userIndex !== -1) {
+        const user = state.users[userIndex]
+        state.users[userIndex] = { ...user, ...updates }
+        localStorage.setItem('forum_users', JSON.stringify(state.users))
+
+        // If this is the current user, update the current user state
+        if (state.user && state.user.id === userId) {
+          state.user = {
+            ...state.user,
+            name: updates.username || state.user.name,
+            bio: updates.bio,
+            location: updates.location,
+            website: updates.website,
+            avatar: updates.avatar
+          }
+          localStorage.setItem('forum_current_user', JSON.stringify(state.user))
+        }
+      }
     }
   },
   actions: {
@@ -140,6 +162,20 @@ export default createStore({
         timestamp: new Date().toISOString()
       }
       commit('ADD_REPLY', { postId, reply: newReply })
+    },
+    updateProfile({ commit, state }, { userId, updates }) {
+      // Validate username uniqueness if username is being updated
+      if (updates.username) {
+        const userExists = state.users.some(
+          u => u.username === updates.username && u.id !== userId
+        )
+        if (userExists) {
+          throw new Error('Username already exists')
+        }
+      }
+
+      commit('UPDATE_USER_PROFILE', { userId, updates })
+      return true
     }
   },
   getters: {
