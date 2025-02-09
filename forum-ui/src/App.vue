@@ -50,6 +50,31 @@
         <div v-if="error" class="error-message">
           {{ error }}
         </div>
+
+        <!-- Social Login Buttons -->
+        <div class="social-login">
+          <button @click="handleSocialLogin('google')" class="social-btn google-btn">
+            <i class="mdi mdi-google"></i>
+            Continue with Google
+          </button>
+          <button @click="handleSocialLogin('github')" class="social-btn github-btn">
+            <i class="mdi mdi-github"></i>
+            Continue with GitHub
+          </button>
+          <button @click="handleSocialLogin('twitter')" class="social-btn twitter-btn">
+            <i class="mdi mdi-twitter"></i>
+            Continue with Twitter
+          </button>
+          <button @click="handleSocialLogin('facebook')" class="social-btn facebook-btn">
+            <i class="mdi mdi-facebook"></i>
+            Continue with Facebook
+          </button>
+        </div>
+
+        <div class="divider">
+          <span>or</span>
+        </div>
+
         <form @submit.prevent="handleSubmit" class="login-form">
           <div class="form-group">
             <label for="username">Username</label>
@@ -110,6 +135,29 @@ export default {
     const isAuthenticated = computed(() => store.getters.isAuthenticated)
     const currentUser = computed(() => store.getters.currentUser)
 
+    const handleSocialLogin = async (provider) => {
+      error.value = ''
+      try {
+        switch (provider) {
+          case 'google':
+            await store.dispatch('loginWithGoogle')
+            break
+          case 'github':
+            await store.dispatch('loginWithGithub')
+            break
+          case 'twitter':
+            await store.dispatch('loginWithTwitter')
+            break
+          case 'facebook':
+            await store.dispatch('loginWithFacebook')
+            break
+        }
+        showLoginModal.value = false
+      } catch (err) {
+        error.value = err.message
+      }
+    }
+
     const handleSubmit = async () => {
       error.value = ''
       try {
@@ -145,7 +193,8 @@ export default {
       logout,
       isRegistering,
       toggleMode,
-      error
+      error,
+      handleSocialLogin
     }
   }
 }
@@ -380,5 +429,87 @@ body {
 
 .toggle-btn:hover {
   text-decoration: underline;
+}
+
+/* Social Login Styles */
+.social-login {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.social-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 1em;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  width: 100%;
+}
+
+.google-btn {
+  background-color: white;
+  color: #374151;
+}
+
+.google-btn:hover {
+  background-color: #f3f4f6;
+}
+
+.github-btn {
+  background-color: #24292e;
+  color: white;
+  border-color: #24292e;
+}
+
+.github-btn:hover {
+  background-color: #1b1f23;
+}
+
+.twitter-btn {
+  background-color: #1da1f2;
+  color: white;
+  border-color: #1da1f2;
+}
+
+.twitter-btn:hover {
+  background-color: #1a91da;
+}
+
+.facebook-btn {
+  background-color: #1877f2;
+  color: white;
+  border-color: #1877f2;
+}
+
+.facebook-btn:hover {
+  background-color: #166fe5;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 24px 0;
+  color: #6b7280;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.divider span {
+  padding: 0 12px;
+  background-color: white;
+  font-size: 0.9em;
 }
 </style>
