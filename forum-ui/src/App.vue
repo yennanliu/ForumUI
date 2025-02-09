@@ -42,12 +42,15 @@
     <div v-if="showLoginModal" class="modal-overlay" @click="showLoginModal = false">
       <div class="modal-content" @click.stop>
         <div class="modal-header">
-          <h2>Login</h2>
+          <h2>{{ isRegistering ? 'Register' : 'Login' }}</h2>
           <button @click="showLoginModal = false" class="close-btn">
             <i class="mdi mdi-close"></i>
           </button>
         </div>
-        <form @submit.prevent="handleLogin" class="login-form">
+        <div v-if="error" class="error-message">
+          {{ error }}
+        </div>
+        <form @submit.prevent="handleSubmit" class="login-form">
           <div class="form-group">
             <label for="username">Username</label>
             <input 
@@ -69,9 +72,15 @@
             >
           </div>
           <button type="submit" class="submit-btn">
-            <i class="mdi mdi-login"></i> Login
+            <i class="mdi" :class="isRegistering ? 'mdi-account-plus' : 'mdi-login'"></i>
+            {{ isRegistering ? 'Register' : 'Login' }}
           </button>
         </form>
+        <div class="modal-footer">
+          <button @click="toggleMode" class="toggle-btn">
+            {{ isRegistering ? 'Already have an account? Login' : 'Need an account? Register' }}
+          </button>
+        </div>
       </div>
     </div>
 
@@ -91,6 +100,8 @@ export default {
   setup() {
     const store = useStore()
     const showLoginModal = ref(false)
+    const isRegistering = ref(false)
+    const error = ref('')
     const loginForm = ref({
       username: '',
       password: ''
@@ -99,14 +110,26 @@ export default {
     const isAuthenticated = computed(() => store.getters.isAuthenticated)
     const currentUser = computed(() => store.getters.currentUser)
 
-    const handleLogin = () => {
-      // In a real app, this would make an API call
-      store.dispatch('login', {
-        name: loginForm.value.username,
-        joinDate: new Date().toISOString()
-      })
-      loginForm.value = { username: '', password: '' }
-      showLoginModal.value = false
+    const handleSubmit = async () => {
+      error.value = ''
+      try {
+        if (isRegistering.value) {
+          await store.dispatch('register', loginForm.value)
+          // After successful registration, log them in
+          await store.dispatch('login', loginForm.value)
+        } else {
+          await store.dispatch('login', loginForm.value)
+        }
+        loginForm.value = { username: '', password: '' }
+        showLoginModal.value = false
+      } catch (err) {
+        error.value = err.message
+      }
+    }
+
+    const toggleMode = () => {
+      isRegistering.value = !isRegistering.value
+      error.value = ''
     }
 
     const logout = () => {
@@ -118,8 +141,11 @@ export default {
       loginForm,
       isAuthenticated,
       currentUser,
-      handleLogin,
-      logout
+      handleSubmit,
+      logout,
+      isRegistering,
+      toggleMode,
+      error
     }
   }
 }
@@ -328,5 +354,31 @@ body {
 /* Main Content */
 .main-content {
   min-height: calc(100vh - 64px);
+}
+
+.error-message {
+  background-color: #fee2e2;
+  color: #dc2626;
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  font-size: 0.9em;
+}
+
+.modal-footer {
+  margin-top: 16px;
+  text-align: center;
+}
+
+.toggle-btn {
+  background: none;
+  border: none;
+  color: var(--primary-color);
+  cursor: pointer;
+  font-size: 0.9em;
+}
+
+.toggle-btn:hover {
+  text-decoration: underline;
 }
 </style>

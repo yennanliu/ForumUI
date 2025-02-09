@@ -1,9 +1,24 @@
 import { createStore } from 'vuex'
 
+// Load initial state from localStorage
+const loadState = () => {
+  try {
+    const users = JSON.parse(localStorage.getItem('forum_users')) || []
+    const posts = JSON.parse(localStorage.getItem('forum_posts')) || []
+    const currentUser = JSON.parse(localStorage.getItem('forum_current_user'))
+    return { users, posts, currentUser }
+  } catch (e) {
+    return { users: [], posts: [], currentUser: null }
+  }
+}
+
+const initialState = loadState()
+
 export default createStore({
   state: {
-    user: null,
-    posts: [],
+    user: initialState.currentUser,
+    users: initialState.users,
+    posts: initialState.posts || [],
     boards: [
       { id: 1, name: 'General Discussion', topic: 'general' },
       { id: 2, name: 'Technology', topic: 'tech' },
@@ -15,12 +30,19 @@ export default createStore({
   mutations: {
     SET_USER(state, user) {
       state.user = user
+      localStorage.setItem('forum_current_user', JSON.stringify(user))
+    },
+    ADD_USER(state, user) {
+      state.users.push(user)
+      localStorage.setItem('forum_users', JSON.stringify(state.users))
     },
     SET_POSTS(state, posts) {
       state.posts = posts
+      localStorage.setItem('forum_posts', JSON.stringify(posts))
     },
     ADD_POST(state, post) {
       state.posts.unshift(post)
+      localStorage.setItem('forum_posts', JSON.stringify(state.posts))
     },
     SET_CURRENT_BOARD(state, board) {
       state.currentBoard = board
@@ -30,27 +52,62 @@ export default createStore({
       if (post) {
         if (!post.replies) post.replies = []
         post.replies.push(reply)
+        localStorage.setItem('forum_posts', JSON.stringify(state.posts))
       }
     }
   },
   actions: {
-    login({ commit }, user) {
-      // In a real app, this would make an API call
-      commit('SET_USER', user)
+    register({ commit, state }, { username, password }) {
+      // Check if user already exists
+      const userExists = state.users.some(u => u.username === username)
+      if (userExists) {
+        throw new Error('Username already exists')
+      }
+
+      const newUser = {
+        id: Date.now(),
+        username,
+        password, // In a real app, this should be hashed
+        joinDate: new Date().toISOString()
+      }
+
+      commit('ADD_USER', newUser)
+      return true
+    },
+    login({ commit, state }, { username, password }) {
+      // Find user
+      const user = state.users.find(
+        u => u.username === username && u.password === password
+      )
+
+      if (!user) {
+        throw new Error('Invalid username or password')
+      }
+
+      // Create a sanitized user object without password
+      const userWithoutPassword = {
+        id: user.id,
+        name: user.username,
+        joinDate: user.joinDate
+      }
+
+      commit('SET_USER', userWithoutPassword)
+      return userWithoutPassword
     },
     logout({ commit }) {
       commit('SET_USER', null)
     },
-    fetchPosts({ commit }, boardTopic = null) {
-      // Simulated API call
-      const posts = [
+    fetchPosts({ commit, state }, boardTopic = null) {
+      // Use posts from state (localStorage)
+      const posts = state.posts.length > 0 ? state.posts : [
         { 
           id: 1, 
           title: 'Welcome to the Forum', 
           content: 'This is our first post!', 
           author: 'Admin', 
           replies: [],
-          board: 'general'
+          board: 'general',
+          timestamp: new Date().toISOString()
         },
         { 
           id: 2, 
@@ -58,19 +115,21 @@ export default createStore({
           content: 'Here are some tips...', 
           author: 'Moderator', 
           replies: [],
-          board: 'general'
+          board: 'general',
+          timestamp: new Date().toISOString()
         }
       ]
+
       // Filter posts by board topic if provided
       const filteredPosts = boardTopic ? posts.filter(post => post.board === boardTopic) : posts
       commit('SET_POSTS', filteredPosts)
     },
     createPost({ commit }, post) {
-      // In a real app, this would make an API call
       const newPost = {
         id: Date.now(),
         ...post,
-        replies: []
+        replies: [],
+        timestamp: new Date().toISOString()
       }
       commit('ADD_POST', newPost)
     },
