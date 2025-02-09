@@ -1,4 +1,11 @@
 import { createStore } from 'vuex'
+import {
+  signInWithGoogle,
+  signInWithGithub,
+  signInWithTwitter,
+  signInWithFacebook,
+  signOutUser
+} from '../firebase/auth'
 
 // Load initial state from localStorage
 const loadState = () => {
@@ -25,7 +32,8 @@ export default createStore({
       { id: 3, name: 'Entertainment', topic: 'entertainment' },
       { id: 4, name: 'Sports', topic: 'sports' }
     ],
-    currentBoard: null
+    currentBoard: null,
+    authError: null
   },
   mutations: {
     SET_USER(state, user) {
@@ -76,6 +84,12 @@ export default createStore({
           localStorage.setItem('forum_current_user', JSON.stringify(state.user))
         }
       }
+    },
+    SET_AUTH_ERROR(state, error) {
+      state.authError = error
+    },
+    CLEAR_AUTH_ERROR(state) {
+      state.authError = null
     }
   },
   actions: {
@@ -116,8 +130,14 @@ export default createStore({
       commit('SET_USER', userWithoutPassword)
       return userWithoutPassword
     },
-    logout({ commit }) {
-      commit('SET_USER', null)
+    async logout({ commit }) {
+      try {
+        await signOutUser()
+        commit('SET_USER', null)
+      } catch (error) {
+        commit('SET_AUTH_ERROR', error.message)
+        throw error
+      }
     },
     fetchPosts({ commit, state }, boardTopic = null) {
       // Use posts from state (localStorage)
@@ -176,6 +196,79 @@ export default createStore({
 
       commit('UPDATE_USER_PROFILE', { userId, updates })
       return true
+    },
+    // Social Authentication Actions
+    async loginWithGoogle({ commit }) {
+      try {
+        commit('CLEAR_AUTH_ERROR')
+        const result = await signInWithGoogle()
+        const user = {
+          id: result.user.uid,
+          name: result.user.displayName,
+          email: result.user.email,
+          avatar: result.user.photoURL,
+          joinDate: new Date().toISOString()
+        }
+        commit('SET_USER', user)
+        return user
+      } catch (error) {
+        commit('SET_AUTH_ERROR', error.message)
+        throw error
+      }
+    },
+    async loginWithGithub({ commit }) {
+      try {
+        commit('CLEAR_AUTH_ERROR')
+        const result = await signInWithGithub()
+        const user = {
+          id: result.user.uid,
+          name: result.user.displayName,
+          email: result.user.email,
+          avatar: result.user.photoURL,
+          joinDate: new Date().toISOString()
+        }
+        commit('SET_USER', user)
+        return user
+      } catch (error) {
+        commit('SET_AUTH_ERROR', error.message)
+        throw error
+      }
+    },
+    async loginWithTwitter({ commit }) {
+      try {
+        commit('CLEAR_AUTH_ERROR')
+        const result = await signInWithTwitter()
+        const user = {
+          id: result.user.uid,
+          name: result.user.displayName,
+          email: result.user.email,
+          avatar: result.user.photoURL,
+          joinDate: new Date().toISOString()
+        }
+        commit('SET_USER', user)
+        return user
+      } catch (error) {
+        commit('SET_AUTH_ERROR', error.message)
+        throw error
+      }
+    },
+    async loginWithFacebook({ commit }) {
+      try {
+        commit('CLEAR_AUTH_ERROR')
+        const result = await signInWithFacebook()
+        const user = {
+          id: result.user.uid,
+          name: result.user.displayName,
+          email: result.user.email,
+          avatar: result.user.photoURL,
+          joinDate: new Date().toISOString()
+        }
+        commit('SET_USER', user)
+        return user
+      } catch (error) {
+        commit('SET_AUTH_ERROR', error.message)
+        throw error
+      }
     }
   },
   getters: {
@@ -183,6 +276,7 @@ export default createStore({
     currentUser: state => state.user,
     allPosts: state => state.posts,
     getPostById: state => id => state.posts.find(post => post.id === id),
-    allBoards: state => state.boards
+    allBoards: state => state.boards,
+    authError: state => state.authError
   }
 }) 
